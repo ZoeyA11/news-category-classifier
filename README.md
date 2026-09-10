@@ -1,227 +1,175 @@
-# סיווג קטגוריות חדשות מטקסט — NLP + Naive Bayes
+# News Category Classification (NLP + Naive Bayes)
 
-מטלה בלמידת מכונה. המשימה: לחזות את קטגוריית המדור של כתבת חדשות על סמך
-הכותרת והתקציר שלה בלבד.
+## Student Information
+- **Name:** Zoey A
+- **Student ID (last 4 digits):** 1269
 
+## Submission Info
+| | |
+|---|---|
+| **Repository URL** | https://github.com/ZoeyA11/news-category-classifier |
+| **AI Tool Disclosure** | See [`PROMPT.md`](./PROMPT.md) for the full prompt history used with the AI chatbot during this project |
+
+## Assignment Parameters
 | | |
 |---|---|
 | **Assignment Type** | NLP |
-| **Learning Type** | Classification (multi-class, 20 מחלקות) |
+| **Learning Type** | Classification (multi-class, 20 classes) |
 | **Algorithm** | Multinomial Naive Bayes |
-| **Dataset** | [News Category Dataset](https://www.kaggle.com/datasets/rmisra/news-category-dataset) (HuffPost) — 209,527 כותרות, 42 קטגוריות |
-| **מדד ההצלחה** | Macro-Average F1 |
+| **Dataset** | [News Category Dataset](https://www.kaggle.com/datasets/rmisra/news-category-dataset) (HuffPost) — 209,527 headlines, 42 original categories |
+| **Evaluation Metric** | Macro-Average F1 |
 
-## התוצאה בשורה אחת
+## AI Tools & Prompt Engineering
+**AI Tool:** Claude (Opus) via Claude Code
 
-**Macro-F1 = 0.6105** על ה-test set (33,212 כותרות, 20 מחלקות), לעומת 0.4888
-ב-baseline — שיפור של 25% שהושג כולו מכיול hyperparameters.
+**Purpose:** Architectural planning for the NLP pipeline, designing the label reduction and duplicate-category merging logic, and defining the multi-class evaluation strategy (Macro-Average F1).
 
-| מודל | Accuracy | **Macro-F1** |
-|---|---|---|
-| Baseline (`alpha=1.0`) | 0.6354 | 0.4888 |
-| **Tuned (`alpha=0.5, fit_prior=False`)** | **0.6741** | **0.6105** |
-| Balanced (oversampling) | 0.6421 | 0.5910 |
-| אותו מודל, כפילויות תיוג ממוזגות בהערכה | 0.7165 | 0.6580 |
-| מיזוג תיוג לפני האימון | 0.6977 | 0.6418 |
+**Key prompts used:**
+- "Find me an NLP-tagged dataset on Kaggle suitable for multi-class text classification with Naive Bayes."
+- "Design a TF-IDF + Multinomial Naive Bayes pipeline where the vectorizer is fitted on the training set only, with grid-search over more than one hyperparameter using stratified k-fold cross validation."
+- "The oversampling made Macro-F1 worse — find out why instead of working around it."
 
-## הייחוס ל-Dataset
+The full prompt history is documented in [`PROMPT.md`](./PROMPT.md).
 
-הרישיון הוא **CC BY 4.0**, כלומר ייחוס הוא תנאי של הרישיון ולא נימוס:
+## Dataset Attribution
+This dataset is licensed under **CC BY 4.0** — attribution is a license condition, not a courtesy:
 
 > Misra, Rishabh. "News Category Dataset." *arXiv preprint arXiv:2209.11429* (2022).
 >
 > Misra, Rishabh and Jigyasa Grover. "Sculpting Data for ML: The first act of Machine Learning." (2021).
 
-## התקנה והרצה
+## Problem Description & Dataset Overview
+This project addresses a supervised multi-class text classification task using the News Category Dataset: 209,527 HuffPost headlines published between 2012 and 2022. Given only the headline and its short description, the model predicts which editorial section the article belongs to.
 
+Rather than classifying into the original 42 fine-grained sections, the targets are aggregated down to the **20 most frequent categories**. This reformulation is deliberate and serves three purposes:
+- It aligns the task with the assignment specification (multi-class, 20 classes)
+- It guarantees higher sample density per class (every retained class holds at least ~3,400 examples, whereas the discarded tail holds fewer than 1,100 each)
+- It yields a more reliable Macro-Average F1, since that metric weights every class equally regardless of size
+
+### Why Naive Bayes suits this task
+The text is represented as a sparse, high-dimensional bag-of-words TF-IDF vector (20,000 features). Naive Bayes assumes the features are conditionally independent given the class — an assumption that is plainly wrong for natural language, since "trump" and "president" are obviously correlated. It nevertheless works well on text: it trains in seconds, resists overfitting in high dimensions, and — most importantly here — it is completely transparent. Every decision follows directly from `log P(word | class)`, so the explanation can be read straight out of the model's parameters, which is what makes Part 6.c possible without SHAP or LIME.
+
+## Headline Result
+**Macro-F1 = 0.6105** on the test set (33,212 headlines, 20 classes), versus 0.4888 for the baseline — a 25% improvement achieved entirely through hyperparameter tuning.
+
+| Model | Accuracy | **Macro-F1** |
+|---|---|---|
+| Baseline (`alpha=1.0`) | 0.6354 | 0.4888 |
+| **Tuned (`alpha=0.5, fit_prior=False`)** | **0.6741** | **0.6105** |
+| Balanced (oversampling) | 0.6421 | 0.5910 |
+| Same model, duplicate labels merged at evaluation | 0.7165 | 0.6580 |
+| Duplicate labels merged before training | 0.6977 | 0.6418 |
+
+## Installation & Usage
 ```bash
 python -m venv .venv
-.venv/Scripts/activate          # Windows;  ב-Linux/macOS: source .venv/bin/activate
+.venv/Scripts/activate          # Windows; on Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-python src/download_data.py     # מוריד את ה-dataset אל data/
-python src/main.py              # מריץ את כל ה-flow מקצה לקצה
-python src/experiment_merge.py  # ניסוי מיזוג התיוג (חלק 6.ב)
+python src/download_data.py     # downloads the dataset into data/
+python src/main.py              # runs the full pipeline end-to-end
+python src/experiment_merge.py  # label-merging experiment (Part 6.b)
 ```
 
-כל מודול ב-`src/` רץ גם באופן עצמאי, כדי לבדוק שלב בודד בלי להריץ את הכול:
-
+Each module in `src/` can also be run standalone, to test a single stage without running everything:
 ```bash
-python src/data_loader.py          # חלק 1 בלבד
-python src/feature_engineering.py  # חלק 2 בלבד
+python src/data_loader.py          # Part 1 only
+python src/feature_engineering.py  # Part 2 only
 ```
 
-ל-notebook:
-
+For the notebook:
 ```bash
 python -m ipykernel install --user --name news-category-nlp \
        --display-name "Python (news-category-nlp)"
 jupyter notebook notebooks/analysis.ipynb
 ```
 
-ה-notebook כבר מצביע על ה-kernel בשם `news-category-nlp`, כך שהוא נפתח
-ורץ בלי לבקש לבחור סביבה. אם ה-kernel לא רשום עדיין, הריצו את הפקודה
-הראשונה פעם אחת.
+The notebook already points to a kernel named `news-category-nlp`, so it opens and runs without prompting for an environment. If the kernel is not registered yet, run the command above once.
 
-### שתי נקודות סביבה ששוות לדעת מראש
+### Two environment notes worth knowing in advance
+**Downloading from Kaggle requires no credentials.** The public endpoint for downloading public *datasets* works without an API token or accepting any terms. Note that this behavior is unique to datasets — downloading data from a **competition** does require both a token and accepting the competition's terms on the site, so it cannot be fully automated.
 
-**הורדה מ-Kaggle לא דורשת credentials.** נקודת הקצה הציבורית להורדת
-*datasets* ציבוריים עובדת בלי API token ובלי אישור תקנון. שווה לדעת
-שההתנהגות הזאת ייחודית ל-datasets: הורדת נתונים של **תחרות** כן דורשת
-גם טוקן וגם אישור תקנון התחרות באתר, ולכן היא לא ניתנת לאוטומציה מלאה.
+**Network with TLS inspection.** If the request to Kaggle fails with `CERTIFICATE_VERIFY_FAILED`, the reason is that a corporate proxy re-signs the certificate chain with a CA that Python's `certifi` bundle doesn't recognize. This project uses `truststore`, which routes verification through the system's certificate store (where the corporate CA is installed). This **preserves** certificate verification — do not use `verify=False`, which would disable protection against man-in-the-middle attacks instead of solving the problem.
 
-**רשת עם TLS inspection.** אם הבקשה ל-Kaggle נכשלת ב-`CERTIFICATE_VERIFY_FAILED`,
-הסיבה היא שפרוקסי ארגוני חותם מחדש את שרשרת התעודות ב-CA שחבילת `certifi`
-של Python לא מכירה. הפרויקט משתמש ב-`truststore`, שמפנה את האימות ל-certificate
-store של המערכת (שבו ה-CA הארגוני מותקן). זה **שומר** על אימות התעודות —
-אין להשתמש ב-`verify=False`, שהיה מבטל את ההגנה מפני man-in-the-middle
-במקום לפתור את הבעיה.
-
-## מבנה הפרויקט
-
-```
-llm_task/
-├── README.md
-├── requirements.txt
-├── data/
-│   └── news_category/
-│       └── News_Category_Dataset_v3.json   <- נוצר ע"י download_data.py
-├── src/
-│   ├── download_data.py        # הורדת ה-dataset מ-Kaggle
-│   ├── console_utf8.py         # תיקון קידוד פלט ב-Windows
-│   ├── data_loader.py          # חלק 1 — טעינה, סקירה, train/test split, מיזוג תיוג
-│   ├── feature_engineering.py  # חלק 2 — ניקוי טקסט + TF-IDF
-│   ├── model.py                # חלק 3 — עוטף MultinomialNB
-│   ├── evaluate.py             # חלק 5 — Macro-F1, report, confusion matrix
-│   ├── tuning.py               # חלק 6.א — grid-search + StratifiedKFold
-│   ├── extensions.py           # חלק 6.ב + 6.ג — imbalance ו-explainability
-│   ├── experiment_merge.py     # חלק 6.ב — ניסוי מיזוג קטגוריות כפולות
-│   ├── viz.py                  # פלטה וסטייל משותפים לכל הגרפים
-│   └── main.py                 # מריץ את כל ה-flow
-├── notebooks/
-│   ├── analysis.ipynb          # ה-notebook המלא עם כל הגרפים (להצגה)
-│   └── analysis.pct.py         # מקור ה-notebook בפורמט jupytext (ידידותי ל-diff)
-└── outputs/                    # גרפים, טבלאות CSV, ולוג הריצה
-```
-
-## התאמה למבנה המטלה
-
-| חלק במטלה | מימוש | תוצאה |
+## Mapping to the Assignment Structure
+| Assignment Part | Implementation | Result |
 |---|---|---|
-| 1. הקדמה, טעינה, train/test split | `data_loader.py` | 209,527 → 166,057 שורות, 20 מחלקות, חלוקה 80/20 מסטרטפת |
-| 2. Feature Engineering | `feature_engineering.py` | TF-IDF, 20,000 features, `fit` על train בלבד |
-| 3. מימוש Naive Bayes | `model.py` | `MultinomialNB` עם `alpha` ו-`fit_prior` |
-| 4. אימון עם flow לפרמטרים שונים | `main.py` | baseline / tuned / balanced |
-| 5. הערכה על test set | `evaluate.py` | **Macro-F1 = 0.6105**, accuracy = 0.6741 |
-| 6.א. grid-search + k-fold | `tuning.py` | 2 hyperparameters, 14 שילובים × 5 folds |
-| 6.ב. imbalanced data | `extensions.py`, `experiment_merge.py` | oversampling + מיזוג תיוג |
-| 6.ג. explainability | `extensions.py` | log-odds per class + הסבר לתחזית בודדת |
+| 1. Introduction, loading, train/test split | `data_loader.py` | 209,527 → 166,057 rows, 20 classes, 80/20 stratified split |
+| 2. Feature Engineering | `feature_engineering.py` | TF-IDF, 20,000 features, `fit` on train only |
+| 3. Naive Bayes implementation | `model.py` | `MultinomialNB` with `alpha` and `fit_prior` |
+| 4. Training with flow over different hyperparameters | `main.py` | baseline / tuned / balanced |
+| 5. Evaluation on the test set | `evaluate.py` | **Macro-F1 = 0.6105**, accuracy = 0.6741 |
+| 6.a. Grid-search + k-fold | `tuning.py` | 2 hyperparameters, 14 combinations × 5 folds |
+| 6.b. Imbalanced data | `extensions.py`, `experiment_merge.py` | oversampling + label merging |
+| 6.c. Explainability | `extensions.py` | log-odds per class + single-prediction explanation |
 
-## החלטות תכנון והנימוק להן
+## Design Decisions and Their Rationale
 
-### למה Macro-F1 ולא Accuracy
+### Why Macro-F1 and not Accuracy
+The data is imbalanced by roughly a 10x ratio (POLITICS: 28,481 vs. IMPACT: 2,787 in train). Accuracy "rewards" a model that only guesses the large class well and ignores the small ones. Macro-F1 gives equal weight to every class regardless of its size, so it measures what actually matters here.
 
-ה-data לא מאוזן ביחס של כ-10x (POLITICS: 28,481 מול IMPACT: 2,787 ב-train).
-Accuracy "מתגמל" מודל שמנחש טוב רק את המחלקה הגדולה ומתעלם מהקטנות.
-Macro-F1 נותן משקל שווה לכל מחלקה ללא תלות בגודלה, ולכן הוא המדד שמודד
-את מה שבאמת מעניין כאן.
+### Why reduce to 20 classes
+The original dataset contains 42 categories. Reducing to the 20 largest aligns with the assignment specification, and additionally the tail classes contain fewer than 1,100 examples each — too few for reliable learning.
 
-### למה צמצום ל-20 מחלקות
+### Why StratifiedKFold and not KFold
+With 20 imbalanced classes, a plain split could produce a fold where a rare class is completely absent. In that case macro-F1 is computed over a class with no examples — which produces warnings and skews the metric downward.
 
-ה-dataset המקורי מכיל 42 קטגוריות. הצמצום ל-20 הגדולות מיישר קו עם מפרט
-המטלה, ובנוסף מחלקות הזנב מכילות פחות מ-1,100 דוגמאות כל אחת — מעט מדי
-ללמידה אמינה.
+### Why fitting only happens on the train set
+The TF-IDF and grid search are learned on the train set only. The test set is not touched until the final selection is made. Validation that this worked: the CV predicted a macro-F1 of 0.6077, and the actual result was 0.6105 — a difference of 0.003, meaning the tuning generalized rather than overfitting to the train set.
 
-### למה StratifiedKFold ולא KFold
+## Key Findings
 
-עם 20 מחלקות לא מאוזנות, חלוקה רגילה עלולה לייצר fold שבו מחלקה נדירה
-נעדרת לחלוטין. במקרה כזה macro-F1 מחושב על מחלקה בלי דוגמאות — מה שמייצר
-אזהרות ומטה את המדד כלפי מטה.
+### 1. All the gain comes from `fit_prior=False`
+In the grid search, **all the top-ranked combinations use `fit_prior=False`**, and the worst are `fit_prior=True` with high alpha (macro-F1 of only 0.378).
 
-### למה `fit`-ים רק על ה-train
+Explanation: `fit_prior=True` learns the prior probability from the data, and since it is imbalanced, the model is biased toward POLITICS from the start and erases the small classes — exactly what macro-F1 penalizes. `fit_prior=False` assumes a uniform distribution and therefore treats all classes equally. **This is itself a form of imbalance handling, done through the hyperparameter rather than the data.**
 
-ה-TF-IDF וה-grid search נלמדים על ה-train בלבד. ה-test אינו נוגע בתהליך
-עד הבחירה הסופית. התיקוף שזה עבד: ה-CV חזה macro-F1 של 0.6077, ובפועל
-יצא 0.6105 — הפרש של 0.003, כלומר הכיול הכליל ולא התאים את עצמו ל-train.
+### 2. Oversampling hurt performance, and this is self-explanatory
+Macro-F1 dropped from 0.6105 to 0.5910. The reason: `fit_prior=False` already neutralizes the imbalance, so oversampling adds no new information — it only duplicates existing rows (132,845 → 569,620, a 4.3x increase) and inflates training time.
 
-## הממצאים המרכזיים
+The takeaway: when the same problem is addressed twice in two different ways, the second doesn't add anything. It's worth checking *why* a method should help before applying it.
 
-### 1. כל הרווח בא מ-`fit_prior=False`
+### 3. The performance ceiling here is label quality, not the model
+The two worst classes by a wide margin were `PARENTS` (F1≈0.30) and `HEALTHY LIVING` (F1≈0.29) — exactly the semantic duplicates of `PARENTING` and `WELLNESS`. HuffPost renamed sections over the years, so the same topic appears under two different names.
 
-ב-grid search, **כל השילובים המובילים הם `fit_prior=False`**, והגרועים
-ביותר הם `fit_prior=True` עם alpha גבוה (macro-F1 של 0.378 בלבד).
-
-ההסבר: `fit_prior=True` לומד את ההסתברות האפריורית מהנתונים, וכיוון שהם
-לא מאוזנים, המודל מוטה מראש לטובת POLITICS ומוחק את המחלקות הקטנות —
-בדיוק מה ש-macro-F1 מעניש עליו. `fit_prior=False` מניח התפלגות אחידה
-ולכן מתייחס לכל המחלקות באופן שווה. **זהו כבר טיפול בחוסר איזון, דרך
-ה-hyperparameter ולא דרך הנתונים.**
-
-### 2. ה-oversampling הזיק, וזה מסביר את עצמו
-
-Macro-F1 ירד מ-0.6105 ל-0.5910. הסיבה: `fit_prior=False` כבר מנטרל את
-חוסר האיזון, ולכן ה-oversampling לא מוסיף אינפורמציה — הוא רק משכפל
-שורות קיימות (132,845 → 569,620, פי 4.3) ומנפח את זמן האימון.
-
-המסקנה: כשמטפלים באותה בעיה פעמיים בשתי דרכים, השנייה לא מוסיפה. שווה
-לבדוק *למה* שיטה אמורה לעזור לפני שמפעילים אותה.
-
-### 3. תקרת הביצועים כאן היא איכות התיוג, לא המודל
-
-שתי המחלקות הגרועות בפער גדול היו `PARENTS` (F1≈0.30) ו-`HEALTHY LIVING`
-(F1≈0.29) — בדיוק הכפילויות הסמנטיות של `PARENTING` ו-`WELLNESS`.
-HuffPost שינו שמות מדורים לאורך השנים, ולכן אותו נושא מופיע תחת שני שמות.
-
-המספרים חד-משמעיים:
-
+The numbers are unambiguous:
 ```
-אמת = PARENTS          → נובא נכון 24.5%  |  נובא כתאום 'PARENTING' 48.8%
-אמת = HEALTHY LIVING   → נובא נכון 23.7%  |  נובא כתאום 'WELLNESS'  47.9%
+true = PARENTS          → correctly predicted 24.5%  |  predicted as twin 'PARENTING' 48.8%
+true = HEALTHY LIVING   → correctly predicted 23.7%  |  predicted as twin 'WELLNESS'  47.9%
 ```
 
-**המודל מנבא את התאום פי שניים יותר מהתווית ה"נכונה".** זו אינה שגיאה של
-המודל — הוא מזהה את הנושא נכון, והתיוג הוא זה ששרירותי. מיזוג הזוגות
-בהערכה בלבד, **בלי אימון מחדש**, מעלה את ה-macro-F1 ל-0.6580. מיזוג לפני
-האימון נותן 0.6418 ובנוסף שומר 85.1% מהנתונים במקום 79.3%.
+**The model predicts the twin twice as often as the "correct" label.** This is not a model error — it identifies the topic correctly, and the labeling is what's arbitrary. Merging the pairs at evaluation only, **without retraining**, raises macro-F1 to 0.6580. Merging before training gives 0.6418 and additionally retains 85.1% of the data instead of 79.3%.
 
-אחרי המיזוג, המחלקות הגרועות הן `IMPACT` ו-`WOMEN` — קטגוריות מערכתיות
-מעורפלות שיכולות להכיל כמעט כל נושא. גם הן מגבלת תיוג ולא מגבלת מודל.
+After merging, the worst classes are `IMPACT` and `WOMEN` — vague, catch-all categories that can contain almost any topic. These, too, are a labeling limitation rather than a model limitation.
 
-### 4. דירוג ה-explainability חייב להיות דיסקרימינטיבי
+### 4. Explainability ranking must be discriminative
+Ranking by raw `feature_log_prob_` returns the words most *frequent* in each class, so the same generic words rise to the top in every class and explain nothing. This implementation uses log-odds — `log P(w|c)` minus the average over the other classes — which isolates what actually distinguishes the class:
 
-דירוג לפי `feature_log_prob_` גולמי מחזיר את המילים ה*נפוצות* בכל מחלקה,
-ולכן אותן מילים גנריות עולות לראש הרשימה בכל מחלקה ולא מסבירות כלום.
-המימוש כאן משתמש ב-log-odds — `log P(w|c)` פחות הממוצע על שאר המחלקות —
-שמבודד את מה שמייחד את המחלקה:
-
-| קטגוריה | המילים המייחדות |
+| Category | Distinctive Words |
 |---|---|
 | POLITICS | `gop`, `trump`, `republican`, `donald`, `clinton` |
 | SPORTS | `nba`, `nfl`, `player`, `football`, `brady` |
 | FOOD & DRINK | `recipes`, `recipe`, `butter`, `kitchen`, `cheese` |
 | TRAVEL | `travel`, `hotel`, `destinations`, `vacation`, `hotels` |
 
-זה אימות איכותי שהמודל לומד סיגנל אמיתי ולא ארטיפקטים של הקורפוס.
+This is a qualitative confirmation that the model learns real signal rather than corpus artifacts.
 
-## תוצרים ב-`outputs/`
-
-| קובץ | תוכן |
+## Outputs in `outputs/`
+| File | Content |
 |---|---|
-| `class_distribution.png` | התפלגות 20 המחלקות (חוסר האיזון) |
-| `grid_search.png` | macro-F1 כפונקציה של alpha, קו לכל `fit_prior` |
-| `confusion_matrix.png` | confusion matrix מנורמל לפי שורה |
-| `per_class_f1.png` | F1 לכל מחלקה, ממוין |
-| `model_comparison.png` | accuracy מול macro-F1 לשלושת המודלים |
-| `top_features.png` | המילים המייחדות לכל קטגוריה (small multiples) |
-| `grid_search_results.csv` | טבלת ה-grid search המלאה |
-| `model_comparison.csv` | טבלת ההשוואה |
-| `per_class_f1.csv` | F1 ותמיכה לכל מחלקה |
-| `merge_experiment.csv` | תוצאות ניסוי מיזוג התיוג |
-| `full_run.log` | הפלט המלא של `main.py` |
+| `class_distribution.png` | Distribution of the 20 classes (the imbalance) |
+| `grid_search.png` | Macro-F1 as a function of alpha, one line per `fit_prior` |
+| `confusion_matrix.png` | Row-normalized confusion matrix |
+| `per_class_f1.png` | F1 per class, sorted |
+| `model_comparison.png` | Accuracy vs. macro-F1 for the three models |
+| `top_features.png` | Distinctive words per category (small multiples) |
+| `grid_search_results.csv` | Full grid search results table |
+| `model_comparison.csv` | Model comparison table |
+| `per_class_f1.csv` | F1 and support per class |
+| `merge_experiment.csv` | Label-merging experiment results |
+| `full_run.log` | Full output log of `main.py` |
 
-## מה היה הצעד הבא
-
-- `max_features=20000` הוא **חסם פעיל** — המילון הגיע בדיוק לתקרה, כלומר
-  התקרה חוסמת features שהיו יכולים לעזור. שווה לסרוק גם אותו ב-grid.
-- `ComplementNB` — וריאנט של Naive Bayes שתוכנן במיוחד ל-data לא מאוזן.
-- השוואה מול Linear SVM או Logistic Regression כ-baseline חזק יותר.
+## What the Next Step Would Be
+- `max_features=20000` is an **active constraint** — the vocabulary hit exactly the cap, meaning it's blocking features that could help. Worth adding it to the grid too.
+- `ComplementNB` — a Naive Bayes variant designed specifically for imbalanced data.
+- A comparison against Linear SVM or Logistic Regression as a stronger baseline.
