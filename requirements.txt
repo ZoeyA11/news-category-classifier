@@ -1,0 +1,19 @@
+# ליבה
+numpy
+pandas
+scikit-learn
+
+# חוסר איזון בין מחלקות (חלק 6.ב)
+imbalanced-learn
+
+# גרפים (seaborn הוסר - viz.py בונה את הפלטה והסטייל ישירות על matplotlib)
+matplotlib
+
+# הורדת ה-dataset. truststore מאפשר אימות תעודות מול ה-certificate store
+# של המערכת - נדרש ברשתות עם TLS inspection. ראה src/download_data.py.
+truststore
+
+# notebook
+jupyter
+notebook
+jupytext
